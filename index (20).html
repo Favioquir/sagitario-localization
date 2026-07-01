@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sagitario | Rutas y Tiempos de Conductores</title>
+<style>
+  :root{
+    --navy:#0d1b3e; --navy2:#16264f; --gold:#c9a227; --gold2:#e0bd3f;
+    --bg:#0a1124; --panel:#11203f; --panel2:#162a52; --line:#24365f;
+    --txt:#e8edf7; --mut:#94a3c4; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Calibri,system-ui,sans-serif;background:var(--bg);color:var(--txt);height:100vh;overflow:hidden}
+  /* LOGIN */
+  #login{position:fixed;inset:0;background:linear-gradient(135deg,#0a1124,#0d1b3e);display:flex;align-items:center;justify-content:center;z-index:9999}
+  .lcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:34px 30px;width:340px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .lcard h1{font-family:Georgia,serif;color:var(--gold);font-size:22px;text-align:center;margin-bottom:4px}
+  .lcard p{color:var(--mut);text-align:center;font-size:12px;margin-bottom:20px}
+  .lcard input{width:100%;padding:11px 12px;margin-bottom:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:14px}
+  .lcard button{width:100%;padding:11px;background:var(--gold);color:#1a1300;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer}
+  .lerr{color:var(--bad);font-size:12px;text-align:center;height:16px;margin-bottom:6px}
+  /* LAYOUT */
+  #app{display:none;grid-template-columns:380px 1fr;grid-template-rows:54px 1fr;height:100vh}
+  header{grid-column:1/3;background:var(--navy);border-bottom:2px solid var(--gold);display:flex;align-items:center;padding:0 16px;gap:14px}
+  header .logo{font-family:Georgia,serif;color:var(--gold);font-weight:700;font-size:17px;letter-spacing:.5px}
+  header .sub{color:var(--mut);font-size:12px}
+  header .spacer{flex:1}
+  header .stat{font-size:12px;color:var(--mut);background:var(--panel);padding:5px 10px;border-radius:6px;border:1px solid var(--line)}
+  header .stat b{color:var(--gold2)}
+  header button.logout{background:transparent;color:var(--mut);border:1px solid var(--line);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px}
+  aside{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:14px}
+  #map{width:100%;height:100%}
+  /* CONTROLS */
+  .grp{margin-bottom:14px}
+  .grp h3{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:8px;border-bottom:1px solid var(--line);padding-bottom:5px}
+  .row{display:flex;gap:8px;margin-bottom:8px}
+  label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
+  select,input[type=text],input[type=date],input[type=time]{width:100%;padding:8px;background:var(--bg);border:1px solid var(--line);border-radius:7px;color:var(--txt);font-size:13px}
+  .btn{padding:8px 12px;border:none;border-radius:7px;font-weight:600;font-size:12px;cursor:pointer;background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+  .btn.gold{background:var(--gold);color:#1a1300;border:none}
+  .btn.sm{padding:5px 9px;font-size:11px}
+  .btn.danger{background:#3a1620;color:#ff9aa8;border:1px solid #5a2230}
+  .btn:hover{filter:brightness(1.1)}
+  .traffic-pills{display:flex;gap:6px}
+  .traffic-pills .btn{flex:1}
+  .traffic-pills .btn.active{background:var(--gold);color:#1a1300}
+  /* LIST */
+  .clist{display:flex;flex-direction:column;gap:6px}
+  .citem{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px 10px;cursor:pointer;transition:.15s}
+  .citem:hover{border-color:var(--gold)}
+  .citem.sel{border-color:var(--gold);background:var(--panel2)}
+  .citem .nm{font-size:13px;font-weight:600}
+  .citem .dir{font-size:11px;color:var(--mut);margin-top:2px;line-height:1.3}
+  .citem .meta{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center}
+  .tag{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600}
+  .tag.t{background:#1c3a5e;color:#9ec5ff}
+  .t-eta{font-weight:700;font-size:12px}
+  .badge-geo{font-size:9px;padding:1px 5px;border-radius:4px}
+  .geo-ok{background:#14321f;color:#7ee2a0}
+  .geo-bad{background:#3a1a1a;color:#ff9a9a}
+  .geo-manual{background:#3a2e14;color:#f1d27a}
+  .cercania{font-size:10px;color:var(--mut)}
+  /* INFO WINDOW */
+  .gm-style-iw *{color:#222 !important}
+  .iw{font-family:'Segoe UI',sans-serif;min-width:200px}
+  .iw h4{color:var(--navy) !important;margin-bottom:4px}
+  .iw .eta{font-size:18px;font-weight:800;color:var(--navy) !important}
+  .iw small{color:#666 !important}
+  /* MODAL */
+  .modal-bg{position:fixed;inset:0;background:rgba(5,8,20,.7);display:none;align-items:center;justify-content:center;z-index:5000}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px;width:420px;max-height:88vh;overflow-y:auto}
+  .modal h2{color:var(--gold);font-size:16px;margin-bottom:14px;font-family:Georgia,serif}
+  .modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+  .hint{font-size:11px;color:var(--mut);margin:-3px 0 10px;line-height:1.4}
+  .loading{position:fixed;bottom:16px;left:396px;background:var(--navy);border:1px solid var(--gold);padding:8px 14px;border-radius:8px;font-size:12px;display:none;z-index:4000}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:10px;color:var(--mut);margin-top:6px}
+  .legend span{display:flex;align-items:center;gap:4px}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .apikey-bar{background:#2a1f08;border:1px solid var(--gold);padding:8px 10px;border-radius:8px;font-size:11px;margin-bottom:12px}
+  .apikey-bar input{margin-top:6px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="lcard">
+    <h1>TRANSPORTES SAGITARIO</h1>
+    <p>Sistema de Rutas y Tiempos &mdash; Operaciones</p>
+    <div class="lerr" id="lerr"></div>
+    <input type="text" id="luser" placeholder="Usuario" autocomplete="off">
+    <input type="password" id="lpass" placeholder="Contrase&ntilde;a">
+    <button onclick="doLogin()">Ingresar</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <span class="logo">SAGITARIO</span>
+    <span class="sub">Terminal Temporal &middot; Cajamarca</span>
+    <span class="spacer"></span>
+    <span class="stat">Conductores: <b id="stCount">0</b></span>
+    <span class="stat">Geocodificados: <b id="stGeo">0</b></span>
+    <span class="stat">ETA prom: <b id="stEta">--</b></span>
+    <button class="logout" onclick="logout()">Salir</button>
+  </header>
+
+  <aside>
+    <div class="apikey-bar" id="apiBar">
+      <b>&#9888; Google Maps API Key</b><br>
+      Pega tu clave para activar mapa y tr&aacute;fico.
+      <input type="text" id="apiKeyIn" placeholder="AIza...">
+      <button class="btn gold sm" style="margin-top:6px;width:100%" onclick="saveKey()">Activar mapa</button>
+    </div>
+
+    <div class="grp">
+      <h3>Hora estimada de salida (ma&ntilde;ana)</h3>
+      <div class="row">
+        <div style="flex:1"><label>Fecha</label><input type="date" id="depDate"></div>
+        <div style="flex:1"><label>Hora</label><input type="time" id="depTime" value="05:00"></div>
+      </div>
+      <label>Modelo de tr&aacute;fico</label>
+      <div class="traffic-pills">
+        <button class="btn sm active" data-tr="bestguess" onclick="setTraffic(this,'bestguess')">Estimado</button>
+        <button class="btn sm" data-tr="pessimistic" onclick="setTraffic(this,'pessimistic')">Pesimista</button>
+        <button class="btn sm" data-tr="optimistic" onclick="setTraffic(this,'optimistic')">Optimista</button>
+      </div>
+      <div class="hint">El tr&aacute;fico se calcula para la fecha/hora futura indicada (cambio de guardia). Direcci&oacute;n: del domicilio &rarr; terminal.</div>
+      <button class="btn gold" style="width:100%;margin-top:6px" onclick="recalcAll()">Calcular tiempos de todos</button>
+    </div>
+
+    <div class="grp">
+      <h3>Filtros</h3>
+      <label>Buscar conductor</label>
+      <input type="text" id="fSearch" placeholder="Nombre o DNI..." oninput="render()">
+      <div class="row" style="margin-top:8px">
+        <div style="flex:1"><label>Cercan&iacute;a</label>
+          <select id="fCerc" onchange="render()">
+            <option value="">Todas</option>
+            <option>MUY CERCA</option><option>CERCA</option><option>LEJOS</option><option>MUY LEJOS</option>
+          </select>
+        </div>
+        <div style="flex:1"><label>En programaci&oacute;n</label>
+          <select id="fProg" onchange="render()">
+            <option value="">Todos</option>
+            <option value="si">Programados hoy</option>
+            <option value="no">No programados</option>
+          </select>
+        </div>
+      </div>
+      <label style="margin-top:8px">Estado geocodificaci&oacute;n</label>
+      <select id="fGeo" onchange="render()">
+        <option value="">Todos</option>
+        <option value="ok">Ubicados</option>
+        <option value="bad">No ubicados</option>
+        <option value="manual">Ubicados manualmente</option>
+      </select>
+    </div>
+
+    <div class="grp">
+      <h3>Conductores <button class="btn gold sm" style="float:right" onclick="openAdd()">+ A&ntilde;adir</button></h3>
+      <div class="legend">
+        <span><i class="dot" style="background:#22c55e"></i>&lt;15 min</span>
+        <span><i class="dot" style="background:#f59e0b"></i>15-30 min</span>
+        <span><i class="dot" style="background:#ef4444"></i>&gt;30 min</span>
+        <span><i class="dot" style="background:#3b82f6"></i>terminal</span>
+      </div>
+      <div class="clist" id="clist" style="margin-top:8px"></div>
+    </div>
+  </aside>
+
+  <div id="map"></div>
+</div>
+
+<div class="loading" id="loading">Calculando&hellip;</div>
+
+<!-- MODAL EDIT/ADD -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2 id="mTitle">A&ntilde;adir conductor</h2>
+    <input type="hidden" id="mIdx">
+    <label>Apellidos y Nombres</label><input type="text" id="mNom">
+    <label>DNI</label><input type="text" id="mDni">
+    <label>Direcci&oacute;n</label><input type="text" id="mDir">
+    <label>Referencia</label><input type="text" id="mRef">
+    <label>Cercan&iacute;a</label>
+    <select id="mCerc"><option>MUY CERCA</option><option>CERCA</option><option>LEJOS</option><option>MUY LEJOS</option></select>
+    <div class="row" style="margin-top:8px">
+      <div style="flex:1"><label>Latitud</label><input type="text" id="mLat" placeholder="auto"></div>
+      <div style="flex:1"><label>Longitud</label><input type="text" id="mLng" placeholder="auto"></div>
+    </div>
+    <div class="hint">Deja lat/lng vac&iacute;os para geocodificar autom&aacute;ticamente. Si el punto qued&oacute; mal, arr&aacute;stralo en el mapa o escribe coordenadas exactas aqu&iacute;.</div>
+    <div class="actions">
+      <button class="btn danger" id="mDel" onclick="delDriver()" style="margin-right:auto;display:none">Eliminar</button>
+      <button class="btn" onclick="closeModal()">Cancelar</button>
+      <button class="btn gold" onclick="saveDriver()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== CREDENCIALES (editar aqu) ===== */
+const USERS = { "admin": "sagitario2026", "favio": "operaciones" };
+
+/* ===== DATOS EMBEBIDOS ===== */
+const DB = {"terminal": {"lat": -7.172921, "lng": -78.485794, "nombre": "Terminal Temporal Sagitario"}, "domicilios": [{"nombre": "AGUILAR DIAZ SEGUNDO LEONCIO", "dni": "26704344", "direccion": "JR. LOS GLADIOLOS 306", "referencia": "POR LA EMPRESA DE TRANSPORTES DIAS ", "cercania": "MUY CERCA"}, {"nombre": "ALARCON LOPEZ JOSE LUIS", "dni": "42785237", "direccion": "Psj. San Carlos 135", "referencia": "entre cenepa y la via- a espaldas del terminal gterrestre", "cercania": "CERCA"}, {"nombre": "ALFARO GIL LUIS MIGUEL", "dni": "62536317", "direccion": "Caserío CHULIPAMPA", "referencia": "De la curva de vista alegre baja por la carretera principal 45 minutos al llegar a una escuela educativa al frente vera una casa que tiene un poste de luz acostado, de primera planta de adobe sin pintar esa es mi casa", "cercania": "MUY LEJOS"}, {"nombre": "ALTAMIRANO JULCAMORO MIGUEL ANGEL", "dni": "26715682", "direccion": "MZ. A LOT 9 AJOSCANCHA", "referencia": "A ESPALDAS DE LA UNC", "cercania": "MUY CERCA"}, {"nombre": "ALVAREZ OCAS SEGUNDO VICTOR", "dni": "41997062", "direccion": "CASERIO LAGUNA SANTA URSULA- NAMORA", "referencia": "", "cercania": "LEJOS"}, {"nombre": "APAZA UTURUNCO CARLOS PRIMITIVO", "dni": "40016884", "direccion": "C.p.el cerrillo BAÑOS DEL INCA ", "referencia": "Hacienda dobertin..campo deportivo santa gertrudis", "cercania": "LEJOS"}, {"nombre": "AQUINO CRISÓLOGO JASLY", "dni": "76849530", "direccion": "SECTOR LA HUACLLA- SAN JUAN ", "referencia": "A 100 MT DEL CEMENTERIO DE SAN JUAN ", "cercania": "MUY LEJOS"}, {"nombre": "ARIZA TERÁN JOSÉ EDUARDO", "dni": "41957749", "direccion": "LA SHILLA ", "referencia": "HOSTAL EL REFUGIO O CAMPO DEPORTIVO EL GUEVARA ", "cercania": "LEJOS"}, {"nombre": "AYAY POMPA JUAN", "dni": "41631676", "direccion": "GRANJA PORCON", "referencia": "PASANDO EL ASERRADERO, PARTA ALTA ", "cercania": "MUY LEJOS"}, {"nombre": "BECERRA HERRERA ANGEL RONALDO", "dni": "48597380", "direccion": "JR. OLAYA 291", "referencia": "FRENTE A GUVIS SERVIS. POR LA EX PLANTA ELÉCTRICA ", "cercania": "MUY CERCA"}, {"nombre": "BUENO OCAS EDWIN WILDER", "dni": "41664987", "direccion": "AV. MANCO CAPAC 1157- BAÑOS DEL INCA", "referencia": "BAÑOS DEL INCA ", "cercania": "LEJOS"}, {"nombre": "BURGA ORTIZ SANTOS", "dni": "26700865", "direccion": "JIRON TUPAC AMARU N°565", "referencia": "PARALELA AL COLEGIO DE INGENIEROS", "cercania": "CERCA"}, {"nombre": "CADENAS SULLON JUAN CARLOS", "dni": "44278235", "direccion": "AV. EZEQUIEL GONZALES CACEDA 110 - CHEPEN ", "referencia": "DEPARTAMENTO DE LAMBAYEQUE", "cercania": "FUERA DEL DEPARTAMENTO DE CAJAMARCA"}, {"nombre": "CALUA VALDIVIA JULIO", "dni": "26728105", "direccion": "Huambocancha Baja km 3 Sector Nuevo Perú - PURUAY ALTO", "referencia": "POR EL PUENTE COLGANTE LA PÓLVORA", "cercania": "LEJOS"}, {"nombre": "CARRASCO CHAVEZ JORGE", "dni": "26705873", "direccion": "HUAMBOCANCHA CHICA Km.4", "referencia": "", "cercania": "LEJOS"}, {"nombre": "CASTILLO REQUEJO EDE", "dni": "44276353", "direccion": "CALLE AMAZONAS SECTOR 8- SANTA BARBARA S/N ", "referencia": "HUAMACHUCO", "cercania": "FUERA DEL DEPARTAMENTO DE CAJAMARCA"}, {"nombre": "CERNA MINCHAN ALAN GUSTAVO", "dni": "46627169", "direccion": "JR. CARLOS MALPICA S/N SHUDAL", "referencia": "POR EL COLEGIO DE SHUDAL", "cercania": "LEJOS"}, {"nombre": "CHACON SALAZAR SERGIO ARTURO", "dni": "44007098", "direccion": " Jr. Alcides carrion 252", "referencia": "A DOS CUADRAS DEL DOLLAR CITY DE VIA DE EVITAMIENTO", "cercania": "CERCA"}, {"nombre": "CHALAN TASILLA ANTONIO", "dni": "42286342", "direccion": "Huambocancha el milagro.km 4800", "referencia": "FRENTE AL SEDACAJ  EL MILAGRO", "cercania": "LEJOS"}, {"nombre": "CHALAN TASILLA GILBERTO", "dni": "40239635", "direccion": "CASERIO EL MILANGRO HUAMBOCANCHA KM4.8", "referencia": "FRENTE AL SEDACAJ  EL MILAGRO", "cercania": "LEJOS"}, {"nombre": "CHAVEZ CASTREJON HECTOR", "dni": "26733523", "direccion": "Psje. san Juan sin número la Molina", "referencia": "", "cercania": "LEJOS"}, {"nombre": "CHAVEZ LIMAY SEGUNDO LORENZO", "dni": "26696966", "direccion": "Tres Molinos MZA Lte 11", "referencia": "POR LA ESCUELA TRES MOLINOS", "cercania": "LEJOS"}, {"nombre": "CHAVEZ MEDINA JOSE VICTOR", "dni": "26663485", "direccion": "PSJ SANTA MARIA", "referencia": "PSJ SANTA MARIA S/N  Y PSJ RAMOS- LA OR ", "cercania": "MUY CERCA"}, {"nombre": "CHAVEZ ZAMBRANO JHON ROSMEL", "dni": "73043943", "direccion": "Pasaje quinta soledad n°112- Barrio Samana Cruz", "referencia": "Colegio Samana Cruz", "cercania": "LEJOS"}, {"nombre": "CHILON CASTREJON RAFAEL", "dni": "26684548", "direccion": "Carretera  bambamarca km 6.5 desvío tual", "referencia": "CASERIO SAN ANTONIO", "cercania": "MUY LEJOS"}, {"nombre": "CHILON HUATAY CARLOS ALEX", "dni": "46860493", "direccion": "GRANJA PORCON", "referencia": "Cruse a San Pablo carretera a kuntur wasi", "cercania": "MUY LEJOS"}, {"nombre": "CHILON INFANTE ALFONSO", "dni": "41699663", "direccion": "Porcon Bajo", "referencia": "CASERIO COLPA LA ESPERANZA ", "cercania": "MUY LEJOS"}, {"nombre": "CHILON INFANTE MARCIAL", "dni": "40051149", "direccion": "C.P. PORCON BAJO", "referencia": "A 100 METROS ANTES DE LA ESCUELA DE PORCON BAJO ", "cercania": "MUY LEJOS"}, {"nombre": "CHUNQUI NOVOA ALEJANDRO", "dni": "41415879", "direccion": "JIRON GUADALUPE S/N - BARRIO LA ESPERANZA", "referencia": "A TRES CUADRAS HACIA ARRIBA DEL CEMENTERIO DE BAÑOS DEL INCA ", "cercania": "LEJOS"}, {"nombre": "CHUQUILIN TERAN URIAS", "dni": "41099762", "direccion": "PSJ SAN CARLOS 125 AJOSCANCHA", "referencia": "URB. AJOSCANCHA", "cercania": "MUY CERCA"}, {"nombre": "CHUQUIMANGO PAISIG ALADINO", "dni": "41007767", "direccion": "JR. LUIS ALBERTO SANCHEZ 280", "referencia": "EX PARADERO DE YANACOCHA", "cercania": "CERCA"}, {"nombre": "CHUQUIMANGO PAISIG ELMER", "dni": "42279552", "direccion": "JR. LUIS ALBERTO SANCHEZ 280", "referencia": "EX PARADERO DE YANACOCHA", "cercania": "CERCA"}, {"nombre": "CHUQUIMANGO PAISIG JAVIER", "dni": "40958838", "direccion": "JR. LOS CIPRECES 350", "referencia": "CERCA AL ESTADIO DE CAJAMARCA", "cercania": "CERCA"}, {"nombre": "COLORADO CABRERA CARLOS", "dni": "43977472", "direccion": "LA COLPA", "referencia": "INGRESO AL MUKY", "cercania": "LEJOS"}, {"nombre": "COTRINA CHAVEZ ERNESTO ELIAS", "dni": "26663558", "direccion": "los nogales 282", "referencia": "POR LA CLÍNICA LOS FRESNOS", "cercania": "CERCA"}, {"nombre": "CULQUI GALVEZ JUAN", "dni": "71973513", "direccion": "AV. HOYOS RUBIO 1284", "referencia": "SIGUIENTE CUADRA DEL ESSALUD DE HOYOS RUBIO", "cercania": "CERCA"}, {"nombre": "DAVALOS BRICEÑO ERWIN JOSÉ", "dni": "40611103", "direccion": "CALLE AYACUCHO N°3- ASCOPE", "referencia": "ASCOPE- LA LIBERTAD", "cercania": "FUERA DEL DEPARTAMENTO DE CAJAMARCA"}, {"nombre": "DILAS CARUAJULCA DANIEL", "dni": "40831551", "direccion": "JR. BELGICA 393 BR LA COLMENA ", "referencia": "POR EL PUENTE AMARILLO", "cercania": "CERCA"}, {"nombre": "ELMER CORREA PINEDO", "dni": "47608410", "direccion": "Jr. Silva Santiateban N°1040", "referencia": "A ESPALDAS DEL MERCADO SAN SEBASTIAN", "cercania": "LEJOS"}, {"nombre": "ESPINOZA MAMANI HELMER", "dni": "26960953", "direccion": "CASERIO HUARIPONGO GRANDE", "referencia": "EN EL RIMER BADEN DE CAMINO A LLACANORA ", "cercania": "MUY LEJOS"}, {"nombre": "GALLARDO CHINGAY LUIS ALBERTO", "dni": "41664675", "direccion": "Av. Manco Capac n°2060- Baños del Inca", "referencia": "Carretera a la Encañada, cerca al cementerio de Baños ", "cercania": "LEJOS"}, {"nombre": "GARCIA LIMAY SEGUNDO ALBERTO", "dni": "42717941", "direccion": "JR. CRUZ DE MAYO S/N", "referencia": "Puente Sullana  Barrio urubanba ", "cercania": "LEJOS"}, {"nombre": "GRACIANO OCAS ALEJANDRO", "dni": "26701559", "direccion": "CASERIO HUARIPONGO GRANDE", "referencia": "CAMINO A LLACANORA", "cercania": "MUY LEJOS"}, {"nombre": "GUEVARA BARDALES ANIBAL", "dni": "26707714", "direccion": "BARRIO LUCMACUCHO MZ A LOT23", "referencia": "FRENTE A LA PLATAFORMA DE LUCMACUCHO", "cercania": "LEJOS"}, {"nombre": "HERRERA TAFUR ALBERTO", "dni": "45029140", "direccion": "Cruz de mayo 174 barrio urbamba ", "referencia": "", "cercania": "LEJOS"}, {"nombre": "HUAMAN MEDINA ROGER ALBERTO", "dni": "46754903", "direccion": "BARRIO 4 MZ C LOTE 6A- ALTO TRUJILLO", "referencia": "TRUJILLO LA LIBERTAD", "cercania": "FUERA DEL DEPARTAMENTO DE CAJAMARCA"}, {"nombre": "HUAMAN OCAS WALTER", "dni": "26705880", "direccion": "Jr. José Olaya N° 291", "referencia": "FRENTE A GUVIS SERVIS. POR LA EX PLANTA ELÉCTRICA ", "cercania": "CERCA"}, {"nombre": "HUARIPATA RODRIGUEZ HUBER ALBERTO", "dni": "42063367", "direccion": "JR. DESAMPARADOS 712", "referencia": "POR LA AV. PERÚ - SUBIENDO LAS ESCALERAS ", "cercania": "CERCA"}, {"nombre": "INFANTE CASTREJON VICTOR NOEL", "dni": "44091950", "direccion": "C.P. HUAMBOCANCHA, CASERIO EL MILAGRO", "referencia": "PASANDO LA ESCUELA EL MILAGRO- VOLTEANDO A LA DERECHA, DOS CUADRAS HACIA ABAJO", "cercania": "LEJOS"}, {"nombre": "INFANTE QUISPE LUCAS FERNANDO", "dni": "40673904", "direccion": "JR. MARISCAL CACERES 383", "referencia": "", "cercania": "CERCA"}, {"nombre": "INTOR OCON JULIO CESAR", "dni": "45782972", "direccion": "JR. HISTORIA 262", "referencia": "", "cercania": "CERCA"}, {"nombre": "ISPILCO CHILON ALEX ELEAZAR", "dni": "47238535", "direccion": "PSJ SAMANA CRUZ 182", "referencia": "POR EL COLEGIO DE SAMANA CRUZ ", "cercania": "LEJOS"}, {"nombre": "JUAREZ RAMIREZ SANTOS", "dni": "26929644", "direccion": "C.P. OTUZCO", "referencia": "PASANDO EL CEMENTERIO DE OTUZCO", "cercania": "MUY LEJOS"}, {"nombre": "LEIVA CERDAN WILSON ROGER", "dni": "41516010", "direccion": "JR. ALFONSO UGARTE B25", "referencia": "BAÑOS DEL INCA ", "cercania": "LEJOS"}, {"nombre": "LEIVA ORRILLO RICARDO", "dni": "27572309", "direccion": "MARTIRES DE UCHURACAY 940", "referencia": "", "cercania": "CERCA"}, {"nombre": "LIMAY LLANOS LORENZO", "dni": "26698003", "direccion": "JR CELENDIN 632", "referencia": "POR LA OR ", "cercania": "CERCA"}, {"nombre": "LINGAN VASQUEZ JOSE LORENZO", "dni": "27966339", "direccion": "CASERIO LLADEN ALTO, SAN MIGUEL", "referencia": "", "cercania": "CERCA"}, {"nombre": "LLANOS CHAUPE HECTOR", "dni": "43609892", "direccion": "PSJ. LOS DURAZNOS 130", "referencia": "POR LA CLINICA LOS FRESNOS ", "cercania": "CERCA"}, {"nombre": "LLANOS CUZCO ALEJANDRO", "dni": "26697414", "direccion": "TARTA GRANDE", "referencia": "PASANDO EL VIA DUCTO ", "cercania": "LEJOS"}, {"nombre": "MALAVER IZQUIERDO WILMER", "dni": "41479418", "direccion": "JR. ANTONIO ASTOPILCO S/N", "referencia": "POR DEYFOR ", "cercania": "CERCA"}, {"nombre": "MALCA BECERRA REGULO", "dni": "26673067", "direccion": "JR. LAS ORQUIDIAS 182", "referencia": "", "cercania": "CERCA"}, {"nombre": "MALCA TORRES RAUL", "dni": "26701278", "direccion": "Av 14 de agosto namora ", "referencia": "Costado centro turístico los zapitos namora ", "cercania": "MUY LEJOS"}, {"nombre": "MALCA VILCA CARLOS EDER", "dni": "43809281", "direccion": "JR. JUAN BEATO MASIAS 962", "referencia": "", "cercania": "MUY CERCA"}, {"nombre": "MARIN HUATAY MARTIN", "dni": "10432556", "direccion": "JIRON SHUCAPAMPA S/N ", "referencia": "A LA ALTURA DE LA CUADRA 16 DE ALFONSO UGARTE", "cercania": "CERCA"}, {"nombre": "MARIN TIRADO JORGE OSWALDO", "dni": "44406148", "direccion": "AA HH cerro colorado - Chepén", "referencia": "CHEPÉN", "cercania": "FUERA DEL DEPARTAMENTO DE CAJAMARCA"}, {"nombre": "MEMBRILLO SALAZAR CESAR RICARDO", "dni": "8558113", "direccion": "JR EMANCIPACION 117", "referencia": "CRUCE CON AV. LA PAZ ", "cercania": "CERCA"}, {"nombre": "MENDOZA JULON JORGE", "dni": "80350571", "direccion": "BARRIO VENECIA MZA LOT 13A", "referencia": "POR EL RÍO DE VENECIA", "cercania": "LEJOS"}, {"nombre": "MENDOZA TAICA CLAUDIO", "dni": "45019933", "direccion": "AV. JUAN MIGUEL ROSELL B6B C.P. SANTA BARBARA", "referencia": "COMO YENDO AL AEROPUERTO", "cercania": "CERCA"}, {"nombre": "MESTANZA MOSQUEIRA CANDELARIO", "dni": "44125090", "direccion": "Otuzco - Baños del inca", "referencia": "DEL PUENTE COLGANTE DE OTUZCO A DOS CUADRAS HACIA ARRIBA ", "cercania": "MUY LEJOS"}, {"nombre": "MINCHAN CARMONA JUAN", "dni": "40546386", "direccion": "JR. LA ROCA S/N SHIDAL", "referencia": "", "cercania": "CERCA"}, {"nombre": "MORENO BENSUNCE ANANIAS", "dni": "26682602", "direccion": "PSJ. CRUZ DE MOTUPE 114", "referencia": "", "cercania": "CERCA"}, {"nombre": "MORENO TELLO EDUARDO", "dni": "26684167", "direccion": "PSJ. CUMBEMAYO 281", "referencia": "", "cercania": "CERCA"}, {"nombre": "MOROCHO MENDOZA ELADIO", "dni": "42439479", "direccion": "AV. HOYOS RUBIO CUADRA 18- PASAJE NIÑO JESUS", "referencia": "UNA CUADRA HACIA ABAJO DEL GRIFO LAS TORRECITAS", "cercania": "LEJOS"}, {"nombre": "MUDARRA LOPEZ CESAR", "dni": "42465988", "direccion": "LA MOLINA S/N", "referencia": "LA SHILLA", "cercania": "LEJOS"}, {"nombre": "MUÑOZ HERRERA JUAN MIGUEL", "dni": "42002129", "direccion": "PROLONGACIÓN SAN MARTÍN ", "referencia": "PASANDO EL BADEN ANTES DE LLEGAR A LA IGLESIA LA COSECHA, EN LA MISMA TIENDA ", "cercania": "CERCA"}, {"nombre": "NOVOA CAMPOS VICTOR JAIMITO", "dni": "44989221", "direccion": "JR. POLONIA CON SANTA ROSA S/N ", "referencia": "", "cercania": "LEJOS"}, {"nombre": "OCAS LLAMOGA JOSE ASUNCION", "dni": "26725247", "direccion": "JR EL MANANTIAL S/N", "referencia": "ANTES DEL PARADERO A PULLUCANA- ANTES DE SUBIR A LA PLAZA DE ARMAS", "cercania": "LEJOS"}, {"nombre": "OLORTEGUI MALAVER LUIS ALBERTO", "dni": "47220215", "direccion": "PSJ. EL ANGEL 147", "referencia": "", "cercania": "CERCA"}, {"nombre": "PISCO HUACCHA ESTEBAN", "dni": "26686212", "direccion": "AV. INDEPENDENCIA CDRA16", "referencia": "A LA SALIDA LA COSTA", "cercania": "LEJOS"}, {"nombre": "PLASENCIA MARTOS JOSE DELFIN", "dni": "26724197", "direccion": "Garcilazo de la Vega 112 interior", "referencia": "A ESPALDAS DEL MERCADO SAN SEBASTIAN", "cercania": "CERCA"}, {"nombre": "PORTAL GARAY CELESTINO", "dni": "80577742", "direccion": "Guacariz San Martín", "referencia": "", "cercania": "CERCA"}, {"nombre": "QUISPE GONZALES RONAL RENE", "dni": "45212831", "direccion": "Jr dos de mayo # 1132", "referencia": "", "cercania": "CERCA"}, {"nombre": "QUISPE SALCEDO SANTOS ANGEL", "dni": "26722543", "direccion": "PORCON ALTO KM15.5", "referencia": "", "cercania": "MUY LEJOS"}, {"nombre": "RAMOS MOSQUEIRA JAVIER", "dni": "26732580", "direccion": "JPS.SANTA ANITA 184 URB LA PERLITA", "referencia": "", "cercania": "CERCA"}, {"nombre": "RAYCO CUSQUISIBAN JOSE ANANIAS", "dni": "42699977", "direccion": "C.P. LA PACCHA", "referencia": "", "cercania": "LEJOS"}, {"nombre": "REQUELME OCAS JOSE MARCELINO", "dni": "40986639", "direccion": "JR GUADALUPE 203", "referencia": "BAÑOS DEL INCA ", "cercania": "LEJOS"}, {"nombre": "REYES SANCHEZ JOSE RICARDO", "dni": "26644514", "direccion": "AV. MIGUEL CARDUCCI 806", "referencia": "", "cercania": "LEJOS"}, {"nombre": "RODAS REVILLA WILMAN EVELIO", "dni": "40452965", "direccion": "MZ A LOTE S/N SECTOR HUACARIZ", "referencia": "PASANDO LA IGLESIA LA COSECHA O PROLONGACION DE LA AV. SAN MARTIN ", "cercania": "CERCA"}, {"nombre": "ROMERO GALLARDO JAIME", "dni": "80545661", "direccion": "AV. MIGUEL CARDUCCI 369", "referencia": "PASANDO EL COLEGIO DE SAMANA CRUZ ", "cercania": "LEJOS"}, {"nombre": "RUDAS BAUTISTA ELADIO", "dni": "44998934", "direccion": "CASERIO LA PERLA  MZ A LT 4A ", "referencia": "NAMORA- POR EL ALBERGUE CASA HOGAR DE LA NIÑA BELÉN ", "cercania": "LEJOS"}, {"nombre": "RUDAS RODRIGUEZ JULIO", "dni": "40843533", "direccion": "JIRON AMERICA N°304", "referencia": "DE LA ESCUELA MIRAFLORES A 3 CUADRAS- ENTRE ALFONSO UGARTE CON ARGENTINA ", "cercania": "CERCA"}, {"nombre": "RUITON HERRERA ELMER", "dni": "43932026", "direccion": "HUAMBOCANCHA ALTA KM9", "referencia": "", "cercania": "LEJOS"}, {"nombre": "RUPACHO LIMAY ANTOLIN", "dni": "41999626", "direccion": "CASERIO MARAYNILLO", "referencia": "", "cercania": "LEJOS"}, {"nombre": "SALAZAR YZQUIERDO JORGE ORLANDO", "dni": "26689817", "direccion": "JR. SAN FRANCISCO S/N", "referencia": "", "cercania": "LEJOS"}, {"nombre": "SALCEDO CHAVEZ JAIME CARLOS", "dni": "26707523", "direccion": "JR. FRANCISCO GALLARDO 198", "referencia": "", "cercania": "LEJOS"}, {"nombre": "SALCEDO QUISPE HIMER MISEAS", "dni": "45386646", "direccion": "PORCON ALTO KM 16 ", "referencia": "CARRETERA A BAMBAMARCA ", "cercania": "LEJOS"}, {"nombre": "SANCHEZ ZAMORA JESUS", "dni": "41023710", "direccion": "JR. JOSE OLAYA 426", "referencia": "", "cercania": "CERCA"}, {"nombre": "SAUCEDO CASANOVA RONALD", "dni": "45441649", "direccion": "Jr. MARISCAL CASERES 383", "referencia": "", "cercania": "CERCA"}, {"nombre": "TACILLA HERRERA AUSBERTO", "dni": "40813039", "direccion": "PROL. AV. PERÚ SN", "referencia": "CHONTAPACCHA PARTE ALTA- DOS CUADRAS HACIA ARRIBA DE 13 DE JULIO ", "cercania": "LEJOS"}, {"nombre": "TANTALEAN CARRASCO JOSE MANUEL", "dni": "26706447", "direccion": "HUAMBOCANCHA BAJA KM3.5", "referencia": "", "cercania": "LEJOS"}, {"nombre": "TASILLA CULQUI JAVIER", "dni": "43891718", "direccion": "AV. HOYOS RUBIO CDRA13 CON JR LOS ANGELES", "referencia": "", "cercania": "CERCA"}, {"nombre": "TERAN ALFARO PEDRO", "dni": "70015912", "direccion": "Hotel Sagitario", "referencia": "FRENTE A LA CENA", "cercania": "CERCA"}, {"nombre": "TERAN BECERRA VICENTE NOLVER", "dni": "46866735", "direccion": "CASERIO CARDON ALTO SAN PABLO", "referencia": "", "cercania": "MUY LEJOS"}, {"nombre": "TINGAL CARRASCO EDILBERTO", "dni": "46423362", "direccion": "CASERIO EL PROGRESO, TUMBADEN", "referencia": "", "cercania": "MUY LEJOS"}, {"nombre": "VALDEZ PORTAL JOSÉ LUIS", "dni": "41366736", "direccion": "POR EL MERCADO ", "referencia": "", "cercania": "CERCA"}, {"nombre": "VARGAS DE LA CRUZ SEGUNDO ANTENOR", "dni": "43977463", "direccion": "AV. MANCO CAPAC CDRA19", "referencia": "", "cercania": "CERCA"}, {"nombre": "VARGAS TEATINO WILDER", "dni": "42074121", "direccion": "barrio benecia s/n", "referencia": "", "cercania": "LEJOS"}, {"nombre": "VASQUEZ GUEVARA CESAR ALFREDO", "dni": "41436988", "direccion": "via de evitamiento norte N°1079", "referencia": "al costado de la policia de transito", "cercania": "LEJOS"}, {"nombre": "VASQUEZ HORNA SANTOS TORIBIO", "dni": "27925468", "direccion": "C.P. LA HUARACLLA", "referencia": "", "cercania": "MUY LEJOS"}, {"nombre": "VASQUEZ TARRILLO NAPOLEON", "dni": "26730609", "direccion": "AV. MOYOCOCHA A 20", "referencia": "FRENTE AL GRIFO MOYOCOCHA", "cercania": "CERCA"}, {"nombre": "VERA PABLO JOSE CONSTANTE", "dni": "70136791", "direccion": "CASA GRANDE S/N ALTO PERU", "referencia": "CASA GRANDE LA LIBERTAD", "cercania": "FUERA DEL DEPARTAMENTO DE CAJAMARCA"}, {"nombre": "VILCA BARBOZA JONATHAN ALEXANDER", "dni": "44626161", "direccion": "JR. JOSE QUIÑONES 604", "referencia": "", "cercania": "CERCA"}, {"nombre": "VILLANUEVA PRADO JAIME", "dni": "26697981", "direccion": "AV. PERÚ MZ. E LOTE 2 ", "referencia": "", "cercania": "LEJOS"}, {"nombre": "VILLAR MENDO SEGUNDO CRUZ", "dni": "26707379", "direccion": "JR. VICTOR PULIDO URRUNAGA 455", "referencia": "", "cercania": "CERCA"}, {"nombre": "YACUPAICO ZAFRA CARLOS ALBERTO", "dni": "42105906", "direccion": "AV. MOYOCOCHA A17", "referencia": "", "cercania": "LEJOS"}, {"nombre": "YONG PEREZ JANSON AUGUSTO", "dni": "71928264", "direccion": "PROL. PACHACUTEC 1001 - LOS BAÑOS DE INCA", "referencia": "", "cercania": "LEJOS"}, {"nombre": "ZAMORA PORTAL WILDER", "dni": "41892889", "direccion": "Caserio Tual", "referencia": "", "cercania": "MUY LEJOS"}], "programacion": [{"item": 1, "codigo_ruta": 101, "placa": "BXT-318", "estado": "PROGRAMADO", "servicio": "EXTERNO", "campamento": "CAJAMARCA", "ruta": "Baños del Inca - La Quinua Complex", "conductor": "MINCHAN CARMONA JUAN", "dni": "40546386", "turno": "DIA", "tipo": "TITULAR"}, {"item": 2, "codigo_ruta": 103, "placa": "BYK-364", "estado": "PROGRAMADO", "servicio": "EXTERNO", "campamento": "CAJAMARCA", "ruta": "Cajamarca - complex - km37", "conductor": "INTOR OCON JULIO CESAR", "dni": "45782972", "turno": "DIA", "tipo": "TITULAR"}, {"item": 3, "codigo_ruta": 104, "placa": "BYL-535", "estado": "PROGRAMADO", "servicio": "EXTERNO", "campamento": "CAJAMARCA", "ruta": "Planta de Carbón - Aglomeración - La Quinua Complex", "conductor": "CHUQUILIN TERAN URIAS", "dni": "41099762", "turno": "DIA", "tipo": "TITULAR"}, {"item": 4, "codigo_ruta": 105, "placa": "CUA-552", "estado": "PROGRAMADO", "servicio": "EXTERNO", "campamento": "CAJAMARCA", "ruta": "Eucaliptos - Mina (Cambio de Guardia Operaciones / Mantenimiento / Procesos)", "conductor": "SALAZAR YZQUIERDO JORGE ORLANDO", "dni": "26689817", "turno": "DIA", "tipo": "TITULAR"}, {"item": 5, "codigo_ruta": 107, "placa": "BXU-340", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 37", "ruta": "Camp. Km37 - Talleres Yanacocha Norte", "conductor": "MENDOZA TAICA CLAUDIO", "dni": "45019933", "turno": "DIA", "tipo": "TITULAR"}, {"item": 6, "codigo_ruta": 108, "placa": "T7Z-523", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 37", "ruta": "Camp. Km37 - Cambio de Guardia 1400", "conductor": "PISCO HUACCHA ESTEBAN", "dni": "26686212", "turno": "DIA", "tipo": "TITULAR"}, {"item": 7, "codigo_ruta": 110, "placa": "BYK-363", "estado": "PROGRAMADO", "servicio": "EXTERNO", "campamento": "CAJAMARCA", "ruta": "Eucaliptos - La Quinua Complex - Camp. Km37", "conductor": "MALAVER IZQUIERDO WILMER", "dni": "41479418", "turno": "DIA", "tipo": "TITULAR"}, {"item": 8, "codigo_ruta": 112, "placa": "T8P-035", "estado": "PROGRAMADO", "servicio": "EXTERNO", "campamento": "CAJAMARCA", "ruta": "Baños del Inca - Talleres Yanacocha Norte - Camp. Km52", "conductor": "LIMAY LLANOS LORENZO", "dni": "26698003", "turno": "DIA", "tipo": "TITULAR"}, {"item": 9, "codigo_ruta": 203, "placa": "BVO-291", "estado": "PROGRAMADO", "servicio": "EXTERNO", "campamento": "CAJAMARCA", "ruta": "Baños del Inca - Mina (Cambio de Guardia Operaciones / Mantenimiento / Procesos)", "conductor": "CHILON INFANTE MARCIAL", "dni": "40051149", "turno": "DIA", "tipo": "RETEN"}, {"item": 10, "codigo_ruta": 204, "placa": "T7Z-321", "estado": "PROGRAMADO", "servicio": "EXTERNO", "campamento": "CAJAMARCA", "ruta": "Shuttle Independencia", "conductor": "CARRASCO CHAVEZ JORGE", "dni": "26705873", "turno": "DIA", "tipo": "TITULAR"}, {"item": 11, "codigo_ruta": 206, "placa": "BWG-013", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 37", "ruta": "Camp. Km37 - Cambio de Guardia Tijeras", "conductor": "RODAS REVILLA WILMAN EVELIO", "dni": "40452965", "turno": "DIA", "tipo": "TITULAR"}, {"item": 12, "codigo_ruta": 207, "placa": "T7Z-274", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - Planta Pampa Larga", "conductor": "RAMOS MOSQUEIRA JAVIER", "dni": "26732580", "turno": "DIA", "tipo": "TITULAR"}, {"item": 13, "codigo_ruta": 208, "placa": "T7S-078", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 37", "ruta": "Camp. Km37 - Planta Yanacocha Norte", "conductor": "VALDEZ PORTAL JOSE LUIS", "dni": "41366736", "turno": "DIA", "tipo": "TITULAR"}, {"item": 14, "codigo_ruta": 210, "placa": "CAH-528", "estado": "PROGRAMADO", "servicio": "EXTERNO", "campamento": "CAJAMARCA", "ruta": "Independencia - Mina (Cambio de Guardia Operaciones / Mantenimiento / Procesos)", "conductor": "VILLANUEVA PRADO JAIME", "dni": "26697981", "turno": "DIA", "tipo": "TITULAR"}, {"item": 15, "codigo_ruta": 211, "placa": "CAD-599", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 37", "ruta": "Camp. Km37 - Laboratorio Análitico - Planta AWTP", "conductor": "BECERRA HERRERA ANGEL RONALDO", "dni": "48597380", "turno": "DIA", "tipo": "TITULAR"}, {"item": 16, "codigo_ruta": 213, "placa": "T7Z-407", "estado": "PROGRAMADO", "servicio": "EXTERNO", "campamento": "CAJAMARCA", "ruta": "Independencia - Laboratorio - La Quinua Complex - Camp. Km37", "conductor": "VARGAS TEATINO WILDER", "dni": "42074121", "turno": "DIA", "tipo": "TITULAR"}, {"item": 17, "codigo_ruta": 303, "placa": "T7Z-571", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - LQ Quinua WTP Oeste (Plataforma 2- Tanques)", "conductor": "MORENO BENSUNCE ANANIAS", "dni": "26682602", "turno": "DIA", "tipo": "TITULAR"}, {"item": 18, "codigo_ruta": 304, "placa": "T8A-146", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - La Quinua WTP (Plataforma 3)", "conductor": "DILAS CARUAJULCA DANIEL JAIRO", "dni": "40831551", "turno": "DIA", "tipo": "TITULAR"}, {"item": 19, "codigo_ruta": 305, "placa": "T6C-158", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - Nuevo terminal", "conductor": "TERAN BECERRA VICENTE NOLVER", "dni": "46866735", "turno": "DIA", "tipo": "TITULAR"}, {"item": 20, "codigo_ruta": 306, "placa": "T6G-164", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - Nuevo terminal", "conductor": "TANTALEAN CARRASCO JOSE MANUEL", "dni": "26706447", "turno": "DIA", "tipo": "TITULAR"}, {"item": 21, "codigo_ruta": 307, "placa": "BYI-299", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - Nuevo terminal", "conductor": "RUDAS BAUTISTA ELADIO", "dni": "44998934", "turno": "DIA", "tipo": "TITULAR"}, {"item": 22, "codigo_ruta": 308, "placa": "T6C-169", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - Nuevo terminal", "conductor": "CHAVEZ LIMAY SEGUNDO LORENZO", "dni": "26696966", "turno": "DIA", "tipo": "TITULAR"}, {"item": 23, "codigo_ruta": 309, "placa": "T6C-205", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - Nuevo terminal", "conductor": "YACUPAICO ZAFRA CARLOS ALBERTO", "dni": "42105906", "turno": "DIA", "tipo": "TITULAR"}, {"item": 24, "codigo_ruta": 310, "placa": "CTZ-622", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - Nuevo terminal", "conductor": "AYAY POMPA JUAN", "dni": "41631676", "turno": "DIA", "tipo": "TITULAR"}, {"item": 25, "codigo_ruta": 311, "placa": "T6C-210", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - Nuevo terminal", "conductor": "CHILON INFANTE ALFONSO", "dni": "41699663", "turno": "DIA", "tipo": "TITULAR"}, {"item": 26, "codigo_ruta": 312, "placa": "BYI-491", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - WTP Oeste (Plataforma 0)", "conductor": "MORENO TELLO EDUARDO", "dni": "26684167", "turno": "DIA", "tipo": "TITULAR"}, {"item": 27, "codigo_ruta": 313, "placa": "BYL-161", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - WTP Oeste (Plataforma 1y2) - NOCHE", "conductor": "HERRERA TAFUR ALBERTO", "dni": "45029140", "turno": "NOCHE", "tipo": "TITULAR"}, {"item": 28, "codigo_ruta": 314, "placa": "T6C-237", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - WTP Oeste (Plataforma 1y2)", "conductor": "REYES SANCHEZ JOSE RICARDO", "dni": "26644514", "turno": "DIA", "tipo": "TITULAR"}, {"item": 29, "codigo_ruta": 315, "placa": "T7Z-526", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - WTP Oeste (Plataforma 1y2) - NOCHE", "conductor": "JUAREZ RAMIREZ SANTOS APOSTOL", "dni": "26929644", "turno": "NOCHE", "tipo": "TITULAR"}, {"item": 30, "codigo_ruta": 316, "placa": "T7Z-540", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - plataforma 1 y 2 - Este - Noche", "conductor": "CASTILLO REQUEJO EDE", "dni": "44276353", "turno": "NOCHE", "tipo": "TITULAR"}, {"item": 31, "codigo_ruta": 317, "placa": "CTZ-484", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - LQ Quinua WTP Oeste (Plataforma 2- Tanques)", "conductor": "MENDOZA JULON JORGE", "dni": "80350571", "turno": "DIA", "tipo": "TITULAR"}, {"item": 32, "codigo_ruta": 318, "placa": "T7W-328", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - Nuevo terminal", "conductor": "LINGAN VASQUEZ JOSE LORENZO", "dni": "27966339", "turno": "DIA", "tipo": "TITULAR"}, {"item": 33, "codigo_ruta": 319, "placa": "T7W-241", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - La Quinua WTP (Plataforma 3)", "conductor": "MUDARRA LOPEZ CESAR", "dni": "42465988", "turno": "DIA", "tipo": "TITULAR"}, {"item": 34, "codigo_ruta": 320, "placa": "CCJ-684", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - La Quinua WTP Oeste ( Plataforma 4)", "conductor": "GUTIERREZ BAUTISTA EDITO JESUS", "dni": "26684442", "turno": "DIA", "tipo": "TITULAR"}, {"item": 35, "codigo_ruta": 321, "placa": "CDT-683", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - WTP Oeste - Almacén Complex", "conductor": "ALVAREZ OCAS SEGUNDO VICTOR", "dni": "41997062", "turno": "DIA", "tipo": "TITULAR"}, {"item": 36, "codigo_ruta": 322, "placa": "T6C-211", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - WTP Oeste - Oficinas Gold Mill", "conductor": "AGUILAR DIAZ SEGUNDO LEONCIO", "dni": "26704344", "turno": "DIA", "tipo": "TITULAR"}, {"item": 37, "codigo_ruta": 323, "placa": "T7X-161", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - Nuevo terminal", "conductor": "GALLARDO CHINGAY LUIS ALBERTO", "dni": "41664675", "turno": "DIA", "tipo": "TITULAR"}, {"item": 38, "codigo_ruta": 324, "placa": "T7X-216", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - Nuevo terminal", "conductor": "BUENO OCAS EDWIN WILDER", "dni": "41664987", "turno": "DIA", "tipo": "TITULAR"}, {"item": 39, "codigo_ruta": 329, "placa": "T6C-156", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - WTP Oeste (Plataforma 1y2)", "conductor": "CADENAS SULLON JUAN CARLOS", "dni": "44278235", "turno": "DIA", "tipo": "TITULAR"}, {"item": 40, "codigo_ruta": 337, "placa": "CTZ-083", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - WTP Oeste (Plataforma 1y2)", "conductor": "CHILON CASTREJON RAFAEL", "dni": "26684548", "turno": "DIA", "tipo": "TITULAR"}, {"item": 41, "codigo_ruta": 346, "placa": "CVX-144", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - Plataforma 0 - Lift 12", "conductor": "QUISPE SALCEDO SANTOS ANGEL", "dni": "26722543", "turno": "DIA", "tipo": "TITULAR"}, {"item": 42, "codigo_ruta": 359, "placa": "BZJ-301", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - WTP Oeste (Plataforma 1y2) - NOCHE", "conductor": "TASILLA CULQUI JAVIER", "dni": "43891718", "turno": "NOCHE", "tipo": "TITULAR"}, {"item": 43, "codigo_ruta": 382, "placa": "CTZ-469", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - Plataforma 2 ESTE - ALMACEN KM45", "conductor": "CERNA MINCHAN ALAN GUSTAVO", "dni": "46627169", "turno": "DIA", "tipo": "TITULAR"}, {"item": 44, "codigo_ruta": 385, "placa": "CTZ-152", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - LQ Quinua WTP Oeste (Plataforma 2- Tanques-Plataforma 5)", "conductor": "PORTAL GARAY CELESTINO", "dni": "80577742", "turno": "DIA", "tipo": "TITULAR"}, {"item": 45, "codigo_ruta": 386, "placa": "CTZ-421", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - WTP Oeste (Plataforma 1y2) - NOCHE", "conductor": "RUDAS RODRIGUEZ JULIO", "dni": "40843533", "turno": "NOCHE", "tipo": "TITULAR"}, {"item": 46, "codigo_ruta": 390, "placa": "CVI-221", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - plataforma 1B - Este - Noche", "conductor": "ISPILCO CHILON ALEX ELEAZAR", "dni": "47238535", "turno": "NOCHE", "tipo": "TITULAR"}, {"item": 47, "codigo_ruta": 391, "placa": "CVU-432", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km37 - WTP Oeste (Plataforma 1y2)", "conductor": "GUEVARA BARDALES ANIBAL", "dni": "26707714", "turno": "DIA", "tipo": "TITULAR"}, {"item": 48, "codigo_ruta": 392, "placa": "T6C-244", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - plataforma 1A- Laydown", "conductor": "VILCA BARBOZA JONATHAN ALEXANDER", "dni": "44626161", "turno": "DIA", "tipo": "RETEN"}, {"item": 49, "codigo_ruta": 394, "placa": "CTZ-452", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - Nuevo terminal", "conductor": "INFANTE CASTREJON NOEL VICTOR", "dni": "44091950", "turno": "DIA", "tipo": "TITULAR"}, {"item": 50, "codigo_ruta": 395, "placa": "CTZ-265", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - WTP Oeste (Plataforma 1y2) - NOCHE", "conductor": "CHALAN TASILLA ANTONIO", "dni": "42286342", "turno": "NOCHE", "tipo": "TITULAR"}, {"item": 51, "codigo_ruta": 397, "placa": "CTZ-319", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - WTP Oeste (Plataforma 1y2)", "conductor": "ROMERO GALLARDO JAIME", "dni": "80545661", "turno": "DIA", "tipo": "TITULAR"}, {"item": 52, "codigo_ruta": 401, "placa": "CXR-417", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 37", "ruta": "Camp. Km37 - LQC -Talleres - Km52", "conductor": "VASQUEZ TARRILLO NAPOLEON", "dni": "26730609", "turno": "DIA", "tipo": "TITULAR"}, {"item": 53, "codigo_ruta": 403, "placa": "CCJ-366", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "KM52- Plataforma 5", "conductor": "CHAVEZ ZAMBRANO JHON ROSMEL", "dni": "73043943", "turno": "DIA", "tipo": "TITULAR"}, {"item": 54, "codigo_ruta": 404, "placa": "CAF-525", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 37", "ruta": "Camp. Km52 - La Quinua Complex - Oficinas Gold Mill - WTP Oeste - WTP Este - Camp. Km37", "conductor": "APAZA UTURUNCO CARLOS PRIMITIVO", "dni": "40016884", "turno": "DIA", "tipo": "TITULAR"}, {"item": 55, "codigo_ruta": 419, "placa": "T7S-096", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - plataforma 3 Oeste", "conductor": "SALCEDO QUISPE HIMER MISEAS", "dni": "45386646", "turno": "DIA", "tipo": "TITULAR"}, {"item": 56, "codigo_ruta": 421, "placa": "CST-454", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - Plataforma 1 y 3 - Oeste", "conductor": "ARIZA TERAN JOSE EDUARDO", "dni": "41957749", "turno": "DIA", "tipo": "TITULAR"}, {"item": 57, "codigo_ruta": 701, "placa": "T7V-156", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 37", "ruta": "Aeropuerto - Camp. Km37 - Oficinas Gold Mill - Camp. Km52", "conductor": "CHILON HUATAY CARLOS ALEX", "dni": "46860493", "turno": "DIA", "tipo": "TITULAR"}, {"item": 58, "codigo_ruta": 705, "placa": "T5U-406", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 37", "ruta": "Camp. Km37 - WTP Oeste (Plataforma 2)", "conductor": "QUISPE GONZALES RONALD RENE", "dni": "45212831", "turno": "DIA", "tipo": "TITULAR"}, {"item": 59, "codigo_ruta": 706, "placa": "T7V-163", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52- WTP Oste (Plataforma 1 - Plataforma 2)", "conductor": "BURGA ORTIZ SANTOS", "dni": "26700865", "turno": "DIA", "tipo": "TITULAR"}, {"item": 60, "codigo_ruta": 707, "placa": "T7V-535", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 37", "ruta": " Visitas: Camp. Km37 - WTP Oeste", "conductor": "MUÑOZ HERRERA JUAN MIGUEL", "dni": "42002129", "turno": "DIA", "tipo": "TITULAR"}, {"item": 61, "codigo_ruta": 708, "placa": "T8E-175", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": " Visitas: Camp. Km52 - WTP Este", "conductor": "YONG PEREZ JANSON AUGUSTO", "dni": "71928264", "turno": "DIA", "tipo": "TITULAR"}, {"item": 62, "codigo_ruta": 709, "placa": "T8E-206", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": " Visitas: Camp. Km52 - WTP Oeste", "conductor": "ALFARO GIL LUIS MIGUEL", "dni": "62536317", "turno": "DIA", "tipo": "TITULAR"}, {"item": "-", "codigo_ruta": "-", "placa": "-", "estado": "PROGRAMADO", "servicio": null, "campamento": "CAJAMARCA", "ruta": "SIN SERVICIO", "conductor": "CHILON INFANTE MARCIAL", "dni": "40051149", "turno": null, "tipo": "RETEN"}, {"item": "-", "codigo_ruta": "-", "placa": "-", "estado": "PROGRAMADO", "servicio": null, "campamento": "CAJAMARCA", "ruta": "SIN SERVICIO", "conductor": "MALCA BECERRA REGULO", "dni": "26673067", "turno": null, "tipo": "RETEN"}, {"item": "-", "codigo_ruta": "-", "placa": "-", "estado": "PROGRAMADO", "servicio": null, "campamento": "KM 37", "ruta": "SIN SERVICIO", "conductor": "ESPINOZA MAMANI HELMER ANTONIO", "dni": "26960953", "turno": null, "tipo": "RETEN"}, {"item": "-", "codigo_ruta": "-", "placa": "-", "estado": "PROGRAMADO", "servicio": null, "campamento": "KM 37", "ruta": "SIN SERVICIO", "conductor": "GRACIANO OCAS ALEJANDRO", "dni": "26701559", "turno": null, "tipo": "RETEN"}, {"item": "-", "codigo_ruta": "-", "placa": "-", "estado": "PROGRAMADO", "servicio": null, "campamento": "KM 52", "ruta": "SIN SERVICIO", "conductor": "NOVOA CAMPOS VICTOR JAIMITO", "dni": "44989221", "turno": null, "tipo": "RETEN"}, {"item": "-", "codigo_ruta": "-", "placa": "-", "estado": "PROGRAMADO", "servicio": null, "campamento": "KM 52", "ruta": "SIN SERVICIO", "conductor": "ALARCON LOPEZ JOSE LUIS", "dni": "42785237", "turno": null, "tipo": "RETEN"}, {"item": "-", "codigo_ruta": "-", "placa": "-", "estado": "PROGRAMADO", "servicio": null, "campamento": "KM 52", "ruta": "SIN SERVICIO", "conductor": "RUDAS BAUTISTA ELADIO", "dni": "44998934", "turno": null, "tipo": "RETEN"}, {"item": "-", "codigo_ruta": "-", "placa": "-", "estado": "PROGRAMADO", "servicio": null, "campamento": "KM 52", "ruta": "SIN SERVICIO", "conductor": "SALCEDO CHAVEZ JAIME CARLOS", "dni": "26707523", "turno": null, "tipo": "RETEN"}, {"item": "-", "codigo_ruta": "-", "placa": "-", "estado": "PROGRAMADO", "servicio": null, "campamento": "KM 52", "ruta": "SIN SERVICIO", "conductor": "HUAMAN MEDINA ROGER ALBERTO", "dni": "46754903", "turno": null, "tipo": "RETEN"}, {"item": 63, "codigo_ruta": 107, "placa": "BXU-340", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 37", "ruta": "Camp. Km37 - Talleres Yanacocha Norte", "conductor": "MENDOZA TAICA CLAUDIO", "dni": "45019933", "turno": "NOCHE", "tipo": "TITULAR"}, {"item": 64, "codigo_ruta": 108, "placa": "T7Z-523", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 37", "ruta": "Camp. Km37 - Cambio de Guardia 1400", "conductor": "PISCO HUACCHA ESTEBAN", "dni": "26686212", "turno": "NOCHE", "tipo": "TITULAR"}, {"item": 65, "codigo_ruta": 204, "placa": "BWG-013", "estado": "PROGRAMADO", "servicio": "EXTERNO", "campamento": "CAJAMARCA", "ruta": "SERVICIO ANITA", "conductor": "CARRASCO CHAVEZ JORGE", "dni": "26705873", "turno": "DIA", "tipo": "TITULAR"}, {"item": 66, "codigo_ruta": 206, "placa": "T7Z-321", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 37", "ruta": "Camp. Km37 - Cambio de Guardia Tijeras", "conductor": "RODAS REVILLA WILMAN EVELIO", "dni": "40452965", "turno": "NOCHE", "tipo": "TITULAR"}, {"item": 67, "codigo_ruta": 207, "placa": "T7Z-274", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - Planta Pampa Larga", "conductor": "RAMOS MOSQUEIRA JAVIER", "dni": "26732580", "turno": "NOCHE", "tipo": "TITULAR"}, {"item": 68, "codigo_ruta": 208, "placa": "T7S-078", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 37", "ruta": "Camp. Km37 - Planta Yanacocha Norte", "conductor": "VALDEZ PORTAL JOSE LUIS", "dni": "41366736", "turno": "NOCHE", "tipo": "TITULAR"}, {"item": 69, "codigo_ruta": 211, "placa": "CAD-599", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 37", "ruta": "Camp. Km37 - Laboratorio Análitico - Planta AWTP", "conductor": "BECERRA HERRERA ANGEL RONALDO", "dni": "48597380", "turno": "NOCHE", "tipo": "TITULAR"}, {"item": 70, "codigo_ruta": 203, "placa": "BVO-291", "estado": "PROGRAMADO", "servicio": "EXTERNO", "campamento": "CAJAMARCA", "ruta": "CAMBIO DE GUARDIA CSJ", "conductor": "LEIVA CERDAN WILSON ROGER", "dni": "41516010", "turno": "DIA", "tipo": "TITULAR"}, {"item": 71, "codigo_ruta": 210, "placa": "CAH-528", "estado": "PROGRAMADO", "servicio": "EXTERNO", "campamento": "CAJAMARCA", "ruta": "CAMBIO DE GUARDIA CSJ", "conductor": "VILLANUEVA PRADO JAIME", "dni": "26697981", "turno": "DIA", "tipo": "TITULAR"}, {"item": 72, "codigo_ruta": 314, "placa": "T6C-237", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - Nuevo terminal", "conductor": "HUAMAN MEDINA ROGER ALBERTO", "dni": "46754903", "turno": "DIA", "tipo": "TITULAR"}, {"item": 73, "codigo_ruta": 329, "placa": "T6C-156", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - Nuevo terminal", "conductor": "NOVOA CAMPOS VICTOR JAIMITO", "dni": "44989221", "turno": "DIA", "tipo": "TITULAR"}, {"item": 74, "codigo_ruta": 391, "placa": "CVU-432", "estado": "PROGRAMADO", "servicio": "INTERNO", "campamento": "KM 52", "ruta": "Camp. Km52 - Nuevo terminal", "conductor": "GUEVARA BARDALES ANIBAL", "dni": "26707714", "turno": "DIA", "tipo": "TITULAR"}], "rutas": {"101": {"inicio": "05:20", "retorno": "18:00"}, "103": {"inicio": "5:20 a. m.", "retorno": "5:30 p. m."}, "104": {"inicio": "05:25", "retorno": "18:00"}, "105": {"inicio": "04:40", "retorno": "08:00"}, "107": {"inicio": "06:00", "retorno": "07:10"}, "108": {"inicio": "07:15", "retorno": "08:00"}, "110": {"inicio": "5:20 a. m.", "retorno": "5:30 p. m."}, "112": {"inicio": "05:00", "retorno": "17:00"}, "203": {"inicio": "04:40", "retorno": "08:00"}, "204": {"inicio": "05:00", "retorno": "06:00"}, "206": {"inicio": "07:15", "retorno": "08:10"}, "207": {"inicio": "07:00", "retorno": "07:50"}, "208": {"inicio": "07:00", "retorno": "07:50"}, "210": {"inicio": "04:40", "retorno": "08:00"}, "211": {"inicio": "07:10", "retorno": "07:50"}, "213": {"inicio": "05:20", "retorno": "18:00"}, "303": {"inicio": "05:00", "retorno": "17:00"}, "304": {"inicio": "06:00", "retorno": "18:00"}, "305": {"inicio": "08:00", "retorno": "17:00"}, "306": {"inicio": "08:00", "retorno": "17:00"}, "307": {"inicio": "08:00", "retorno": "17:00"}, "308": {"inicio": "08:00", "retorno": "17:00"}, "309": {"inicio": "08:00", "retorno": "17:00"}, "310": {"inicio": "08:00", "retorno": "17:00"}, "311": {"inicio": "08:00", "retorno": "17:00"}, "312": {"inicio": "06:15", "retorno": "18:00"}, "313": {"inicio": "05:30", "retorno": "17:30"}, "314": {"inicio": "05:00", "retorno": "17:00"}, "315": {"inicio": "17:30", "retorno": "05:30"}, "316": {"inicio": "17:30", "retorno": "05:30"}, "317": {"inicio": "05:00", "retorno": "17:00"}, "318": {"inicio": "08:00", "retorno": "17:00"}, "319": {"inicio": "06:00", "retorno": "18:00"}, "320": {"inicio": "06:00", "retorno": "18:00"}, "321": {"inicio": "06:15", "retorno": "18:15"}, "322": {"inicio": "06:15", "retorno": "18:15"}, "323": {"inicio": "08:00", "retorno": "17:00"}, "324": {"inicio": "08:00", "retorno": "17:00"}, "329": {"inicio": "05:00", "retorno": "17:00"}, "337": {"inicio": "05:30", "retorno": "17:00"}, "346": {"inicio": "06:00", "retorno": "17:30"}, "359": {"inicio": "17:30", "retorno": "05:30"}, "382": {"inicio": "06:30", "retorno": "18:30"}, "385": {"inicio": "05:00", "retorno": "17:00"}, "386": {"inicio": "17:30", "retorno": "05:30"}, "390": {"inicio": "17:30", "retorno": "05:30"}, "391": {"inicio": "05:00", "retorno": "17:00"}, "392": {"inicio": "06:30", "retorno": "18:30"}, "394": {"inicio": "08:00", "retorno": "17:00"}, "395": {"inicio": "17:30", "retorno": "05:30"}, "397": {"inicio": "05:20", "retorno": "17:30"}, "401": {"inicio": "06:20", "retorno": "17:00"}, "403": {"inicio": "05:30", "retorno": "17:30"}, "404": {"inicio": "06:45", "retorno": "17:30"}, "419": {"inicio": "05:30", "retorno": "17:30"}, "421": {"inicio": "05:30", "retorno": "17:30"}, "701": {"inicio": "04:00", "retorno": "17:00"}, "705": {"inicio": "07:10", "retorno": "18:00"}, "706": {"inicio": "05:30", "retorno": "18:00"}, "707": {"inicio": "07:00", "retorno": "18:00"}, "708": {"inicio": "05:30", "retorno": "17:30"}, "709": {"inicio": "06:00", "retorno": "18:00"}, "RETEN": {"inicio": null, "retorno": null}}};
+const TERMINAL = DB.terminal;
+
+/* indexar programacion por DNI */
+const PROG_BY_DNI = {};
+DB.programacion.forEach(p=>{ if(p.dni) PROG_BY_DNI[p.dni]=p; });
+
+/* estado de conductores (domicilios) */
+let drivers = DB.domicilios.map((d,i)=>({
+  idx:i, nombre:d.nombre, dni:String(d.dni||''),
+  direccion:d.direccion||'', referencia:d.referencia||'',
+  cercania:(d.cercania||'').trim(),
+  lat:null, lng:null, geo:'pending', eta:null, etaText:null, distText:null,
+  marker:null
+}));
+
+let map, geocoder, infoWin, terminalMarker, trafficLayer, dirService;
+let trafficModel='bestguess', selIdx=null, apiReady=false;
+
+/* ===== LOGIN ===== */
+function doLogin(){
+  const u=document.getElementById('luser').value.trim();
+  const p=document.getElementById('lpass').value;
+  if(USERS[u] && USERS[u]===p){
+    sessionStorage.setItem('auth','1');
+    document.getElementById('login').style.display='none';
+    document.getElementById('app').style.display='grid';
+    initApp();
+  } else { document.getElementById('lerr').textContent='Usuario o contrase\u00f1a incorrectos'; }
+}
+function logout(){ sessionStorage.removeItem('auth'); location.reload(); }
+document.getElementById('lpass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+/* ===== INIT ===== */
+function initApp(){
+  // fecha por defecto = maana
+  const t=new Date(); t.setDate(t.getDate()+1);
+  document.getElementById('depDate').value=t.toISOString().slice(0,10);
+  // restaurar API key guardada
+  const k=localStorage.getItem('gmapsKey');
+  if(k){ document.getElementById('apiKeyIn').value=k; loadGoogle(k); }
+  render();
+  updateStats();
+}
+
+function saveKey(){
+  const k=document.getElementById('apiKeyIn').value.trim();
+  if(!k){alert('Pega una API key v\u00e1lida');return;}
+  localStorage.setItem('gmapsKey',k);
+  loadGoogle(k);
+}
+function loadGoogle(key){
+  if(window.google && window.google.maps){ initMap(); return; }
+  const s=document.createElement('script');
+  s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&libraries=places&callback=initMap&language=es&region=PE';
+  s.async=true; s.onerror=()=>alert('Error cargando Google Maps. Revisa tu API key y que tenga habilitadas Maps JavaScript, Geocoding y Directions API.');
+  document.head.appendChild(s);
+}
+
+window.initMap=function(){
+  apiReady=true;
+  document.getElementById('apiBar').style.display='none';
+  map=new google.maps.Map(document.getElementById('map'),{
+    center:{lat:TERMINAL.lat,lng:TERMINAL.lng}, zoom:13,
+    styles:[{elementType:'geometry',stylers:[{color:'#1d2c4d'}]},{elementType:'labels.text.fill',stylers:[{color:'#8ec3b9'}]},{elementType:'labels.text.stroke',stylers:[{color:'#1a3646'}]},{featureType:'road',elementType:'geometry',stylers:[{color:'#304a7d'}]},{featureType:'water',elementType:'geometry',stylers:[{color:'#0e1626'}]},{featureType:'poi',stylers:[{visibility:'off'}]}]
+  });
+  geocoder=new google.maps.Geocoder();
+  infoWin=new google.maps.InfoWindow();
+  dirService=new google.maps.DirectionsService();
+  trafficLayer=new google.maps.TrafficLayer(); trafficLayer.setMap(map);
+  terminalMarker=new google.maps.Marker({
+    position:{lat:TERMINAL.lat,lng:TERMINAL.lng}, map,
+    title:'TERMINAL TEMPORAL SAGITARIO',
+    icon:{path:google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,scale:6,fillColor:'#3b82f6',fillOpacity:1,strokeColor:'#fff',strokeWeight:2},
+    zIndex:9999
+  });
+  geocodeAll();
+}
+
+/* ===== GEOCODIFICACION ===== */
+async function geocodeAll(){
+  showLoading('Ubicando domicilios...');
+  for(const d of drivers){
+    if(d.geo==='ok'||d.geo==='manual'){ placeMarker(d); continue; }
+    await geocodeOne(d);
+    await sleep(120); // evitar OVER_QUERY_LIMIT
+  }
+  hideLoading(); render(); updateStats();
+}
+function geocodeOne(d){
+  return new Promise(res=>{
+    const q=(d.direccion+', Cajamarca, Per\u00fa');
+    geocoder.geocode({address:q,region:'PE'},(r,st)=>{
+      if(st==='OK'&&r[0]){
+        const loc=r[0].geometry.location;
+        d.lat=loc.lat(); d.lng=loc.lng(); d.geo='ok';
+        placeMarker(d);
+      } else { d.geo='bad'; }
+      res();
+    });
+  });
+}
+function placeMarker(d){
+  if(d.lat==null) return;
+  const color=etaColor(d.eta);
+  if(d.marker){ d.marker.setMap(null); }
+  d.marker=new google.maps.Marker({
+    position:{lat:d.lat,lng:d.lng}, map, draggable:true,
+    title:d.nombre,
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:7,fillColor:color,fillOpacity:.95,strokeColor:'#fff',strokeWeight:1.5}
+  });
+  d.marker.addListener('click',()=>{ selIdx=d.idx; openInfo(d); highlight(); });
+  d.marker.addListener('dragend',e=>{
+    d.lat=e.latLng.lat(); d.lng=e.latLng.lng(); d.geo='manual';
+    render(); updateStats();
+  });
+}
+function etaColor(eta){
+  if(eta==null) return '#94a3c4';
+  if(eta<15) return '#22c55e';
+  if(eta<=30) return '#f59e0b';
+  return '#ef4444';
+}
+
+/* ===== CALCULO DE TIEMPOS CON TRAFICO ===== */
+function depDateTime(){
+  const dt=document.getElementById('depDate').value;
+  const tm=document.getElementById('depTime').value||'05:00';
+  let d=new Date(dt+'T'+tm+':00');
+  if(d.getTime()<=Date.now()) d=new Date(Date.now()+3600*1000); // Google exige futuro
+  return d;
+}
+async function recalcAll(){
+  if(!apiReady){alert('Primero activa el mapa con tu API key');return;}
+  const dep=depDateTime();
+  const list=drivers.filter(d=>d.lat!=null);
+  showLoading('Calculando tiempos con tr\u00e1fico ('+list.length+')...');
+  for(const d of list){ await calcOne(d,dep); await sleep(150); }
+  hideLoading(); render(); updateStats();
+}
+function calcOne(d,dep){
+  return new Promise(res=>{
+    dirService.route({
+      origin:{lat:d.lat,lng:d.lng}, destination:{lat:TERMINAL.lat,lng:TERMINAL.lng},
+      travelMode:'DRIVING',
+      drivingOptions:{departureTime:dep, trafficModel:trafficModel}
+    },(r,st)=>{
+      if(st==='OK'&&r.routes[0]){
+        const leg=r.routes[0].legs[0];
+        const sec=(leg.duration_in_traffic||leg.duration).value;
+        d.eta=Math.round(sec/60); d.etaText=(leg.duration_in_traffic||leg.duration).text;
+        d.distText=leg.distance.text;
+        if(d.marker) d.marker.setIcon({path:google.maps.SymbolPath.CIRCLE,scale:7,fillColor:etaColor(d.eta),fillOpacity:.95,strokeColor:'#fff',strokeWeight:1.5});
+      } else { d.eta=null; }
+      res();
+    });
+  });
+}
+function setTraffic(btn,m){
+  trafficModel=m;
+  document.querySelectorAll('.traffic-pills .btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+/* ===== INFO WINDOW ===== */
+function openInfo(d){
+  const p=PROG_BY_DNI[d.dni];
+  let prog=p?('<div style="margin-top:6px;padding-top:6px;border-top:1px solid #ddd"><small>PROGRAMADO HOY</small><br><b>'+(p.codigo_ruta||'')+'</b> &middot; '+(p.placa||'')+'<br>'+(p.ruta||'')+'<br>Turno: '+(p.turno||'-')+'</div>'):'<div style="margin-top:6px"><small>No programado hoy</small></div>';
+  infoWin.setContent('<div class="iw"><h4>'+d.nombre+'</h4>'+
+    '<small>DNI '+d.dni+' &middot; '+d.cercania+'</small><br>'+
+    '<small>'+d.direccion+'</small><br>'+
+    (d.etaText?('<div class="eta">'+d.etaText+'</div><small>'+(d.distText||'')+' &middot; tr\u00e1fico '+trafficModel+'</small>'):'<small style="color:#999">Sin c\u00e1lculo de tiempo</small>')+
+    prog+
+    '<div style="margin-top:8px"><a href="#" onclick="openEdit('+d.idx+');return false">Editar</a></div></div>');
+  infoWin.open(map,d.marker);
+}
+
+/* ===== RENDER LISTA ===== */
+function filtered(){
+  const s=document.getElementById('fSearch').value.toLowerCase();
+  const c=document.getElementById('fCerc').value;
+  const pr=document.getElementById('fProg').value;
+  const g=document.getElementById('fGeo').value;
+  return drivers.filter(d=>{
+    if(s && !(d.nombre.toLowerCase().includes(s)||d.dni.includes(s))) return false;
+    if(c && d.cercania.toUpperCase()!==c) return false;
+    if(pr==='si' && !PROG_BY_DNI[d.dni]) return false;
+    if(pr==='no' && PROG_BY_DNI[d.dni]) return false;
+    if(g==='ok' && d.geo!=='ok') return false;
+    if(g==='bad' && d.geo!=='bad') return false;
+    if(g==='manual' && d.geo!=='manual') return false;
+    return true;
+  });
+}
+function render(){
+  const list=filtered();
+  const el=document.getElementById('clist');
+  el.innerHTML=list.map(d=>{
+    const geoBadge=d.geo==='ok'?'<span class="badge-geo geo-ok">ubicado</span>':d.geo==='manual'?'<span class="badge-geo geo-manual">manual</span>':d.geo==='bad'?'<span class="badge-geo geo-bad">sin ubicar</span>':'<span class="badge-geo">...</span>';
+    const eta=d.eta!=null?('<span class="t-eta" style="color:'+etaColor(d.eta)+'">'+d.eta+' min</span>'):'<span class="cercania">sin ETA</span>';
+    const prog=PROG_BY_DNI[d.dni]?'<span class="tag t">'+(PROG_BY_DNI[d.dni].codigo_ruta||'PROG')+'</span>':'';
+    return '<div class="citem'+(d.idx===selIdx?' sel':'')+'" onclick="focusDriver('+d.idx+')">'+
+      '<div class="nm">'+d.nombre+'</div>'+
+      '<div class="dir">'+(d.direccion||'&mdash;')+'</div>'+
+      '<div class="meta">'+eta+prog+geoBadge+'<span class="cercania">'+d.cercania+'</span>'+
+      '<button class="btn sm" style="margin-left:auto" onclick="event.stopPropagation();openEdit('+d.idx+')">&#9998;</button></div></div>';
+  }).join('') || '<div class="hint">Sin resultados.</div>';
+}
+function focusDriver(idx){
+  selIdx=idx; highlight();
+  const d=drivers.find(x=>x.idx===idx);
+  if(d&&d.lat!=null&&map){ map.panTo({lat:d.lat,lng:d.lng}); map.setZoom(15); openInfo(d); }
+}
+function highlight(){ render(); }
+
+function updateStats(){
+  document.getElementById('stCount').textContent=drivers.length;
+  document.getElementById('stGeo').textContent=drivers.filter(d=>d.lat!=null).length;
+  const etas=drivers.filter(d=>d.eta!=null).map(d=>d.eta);
+  document.getElementById('stEta').textContent=etas.length?Math.round(etas.reduce((a,b)=>a+b,0)/etas.length)+' min':'--';
+}
+
+/* ===== CRUD ===== */
+function openAdd(){
+  document.getElementById('mTitle').textContent='A\u00f1adir conductor';
+  document.getElementById('mIdx').value='';
+  ['mNom','mDni','mDir','mRef','mLat','mLng'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('mCerc').value='CERCA';
+  document.getElementById('mDel').style.display='none';
+  document.getElementById('modalBg').style.display='flex';
+}
+function openEdit(idx){
+  const d=drivers.find(x=>x.idx===idx); if(!d)return;
+  infoWin&&infoWin.close();
+  document.getElementById('mTitle').textContent='Editar conductor';
+  document.getElementById('mIdx').value=idx;
+  document.getElementById('mNom').value=d.nombre;
+  document.getElementById('mDni').value=d.dni;
+  document.getElementById('mDir').value=d.direccion;
+  document.getElementById('mRef').value=d.referencia;
+  document.getElementById('mCerc').value=d.cercania.toUpperCase().includes('MUY CERCA')?'MUY CERCA':d.cercania.toUpperCase().includes('MUY LEJOS')?'MUY LEJOS':d.cercania.toUpperCase().includes('CERCA')?'CERCA':'LEJOS';
+  document.getElementById('mLat').value=d.lat??'';
+  document.getElementById('mLng').value=d.lng??'';
+  document.getElementById('mDel').style.display='inline-block';
+  document.getElementById('modalBg').style.display='flex';
+}
+function closeModal(){ document.getElementById('modalBg').style.display='none'; }
+async function saveDriver(){
+  const idx=document.getElementById('mIdx').value;
+  const obj={
+    nombre:document.getElementById('mNom').value.trim().toUpperCase(),
+    dni:document.getElementById('mDni').value.trim(),
+    direccion:document.getElementById('mDir').value.trim(),
+    referencia:document.getElementById('mRef').value.trim(),
+    cercania:document.getElementById('mCerc').value
+  };
+  if(!obj.nombre){alert('Falta el nombre');return;}
+  const lat=parseFloat(document.getElementById('mLat').value);
+  const lng=parseFloat(document.getElementById('mLng').value);
+  if(idx===''){
+    const ni=Math.max(0,...drivers.map(d=>d.idx))+1;
+    const d={idx:ni,...obj,lat:isFinite(lat)?lat:null,lng:isFinite(lng)?lng:null,geo:isFinite(lat)?'manual':'pending',eta:null,etaText:null,distText:null,marker:null};
+    drivers.push(d);
+    if(apiReady){ if(d.lat!=null)placeMarker(d); else await geocodeOne(d); }
+  } else {
+    const d=drivers.find(x=>x.idx==idx);
+    Object.assign(d,obj);
+    if(isFinite(lat)&&isFinite(lng)){ d.lat=lat;d.lng=lng;d.geo='manual';d.eta=null; if(apiReady)placeMarker(d); }
+    else if(apiReady && (d.geo==='pending'||d.geo==='bad')){ await geocodeOne(d); }
+  }
+  closeModal(); render(); updateStats();
+}
+function delDriver(){
+  const idx=document.getElementById('mIdx').value;
+  const d=drivers.find(x=>x.idx==idx);
+  if(d){ if(d.marker)d.marker.setMap(null); drivers=drivers.filter(x=>x.idx!=idx); }
+  closeModal(); render(); updateStats();
+}
+
+/* ===== UTILS ===== */
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function showLoading(t){const l=document.getElementById('loading');l.textContent=t;l.style.display='block';}
+function hideLoading(){document.getElementById('loading').style.display='none';}
+
+/* auto-login si ya autenticado */
+if(sessionStorage.getItem('auth')==='1'){
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='grid';
+  initApp();
+}
+</script>
+</body>
+</html>
